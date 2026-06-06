@@ -1,9 +1,9 @@
 import os
 import sys
+
 import cv2
-import torch
-import numpy as np
 import matplotlib.pyplot as plt
+import torch
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(PROJECT_ROOT)
@@ -13,7 +13,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
     sys.path.insert(0, CURRENT_DIR)
 
-from common.utils import ensure_dir, save_image
+from common.utils import ensure_dir
 
 # 跨模块兼容：绝对导入 + 相对导入回退
 try:

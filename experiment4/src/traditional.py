@@ -1,5 +1,5 @@
 import cv2
-import numpy as np
+
 
 def apply_median_filters(img, kernel_sizes=[3, 5, 7]):
     """1. 探究不同滤波窗口大小对去噪效果的影响"""

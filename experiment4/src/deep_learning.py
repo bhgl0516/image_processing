@@ -1,7 +1,7 @@
+import cv2
+import numpy as np
 import torch
 import torchvision
-import numpy as np
-import cv2
 from torchvision.models.detection import maskrcnn_resnet50_fpn, MaskRCNN_ResNet50_FPN_Weights
 
 # COCO 2017 类别标签 (部分常见类别展示)

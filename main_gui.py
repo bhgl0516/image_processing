@@ -1,6 +1,6 @@
 import os
 import sys
-import threading
+
 import matplotlib
 
 # ================= 核心路径注入 =================
@@ -21,10 +21,10 @@ import matplotlib.pyplot as plt
 plt.show = lambda: None
 
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QObject
-from PyQt5.QtGui import QColor, QFont, QPixmap, QTextCursor
+from PyQt5.QtGui import QColor, QPixmap, QTextCursor
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QGridLayout, QLabel, QPushButton,
-                             QStackedWidget, QSpacerItem, QSizePolicy,
+                             QStackedWidget, QSizePolicy,
                              QGraphicsDropShadowEffect, QMessageBox, QGroupBox,
                              QFormLayout, QLineEdit, QTextEdit)
 
