@@ -8,9 +8,20 @@ import matplotlib.pyplot as plt
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(PROJECT_ROOT)
 
+# 确保当前实验目录在 sys.path 中（from src.xxx 需要）
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
+
 from common.utils import ensure_dir, save_image
-from src.traditional import apply_median_filters, otsu_segmentation, morphological_process
-from src.deep_learning import load_mask_rcnn_model, predict_and_visualize, add_gaussian_noise
+
+# 跨模块兼容：绝对导入 + 相对导入回退
+try:
+    from src.traditional import apply_median_filters, otsu_segmentation, morphological_process
+    from src.deep_learning import load_mask_rcnn_model, predict_and_visualize, add_gaussian_noise
+except ImportError:
+    from .src.traditional import apply_median_filters, otsu_segmentation, morphological_process
+    from .src.deep_learning import load_mask_rcnn_model, predict_and_visualize, add_gaussian_noise
 
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
 plt.rcParams['axes.unicode_minus'] = False

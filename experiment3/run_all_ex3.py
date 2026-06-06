@@ -10,10 +10,22 @@ import torch
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(PROJECT_ROOT)
 
+# 确保当前实验目录在 sys.path 中（from src.xxx 需要）
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
+
 from common.utils import ensure_dir
-from src.dataset import get_dataloaders
-from src.model import SimpleCNN
-from src.train import train_model, evaluate_model
+
+# 跨模块兼容：绝对导入 + 相对导入回退
+try:
+    from src.dataset import get_dataloaders
+    from src.model import SimpleCNN
+    from src.train import train_model, evaluate_model
+except ImportError:
+    from .src.dataset import get_dataloaders
+    from .src.model import SimpleCNN
+    from .src.train import train_model, evaluate_model
 
 # 绘图字体支持
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
