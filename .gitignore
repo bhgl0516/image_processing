@@ -5,5 +5,23 @@ __pycache__/
 *.pyd
 *.so
 
-# 大文件
+# 运行时生成的结果目录 (每个用户运行结果不同，不应提交)
+results/
+
+# 自动下载/解压的大文件
 experiment3/data/cifar-10-python.tar.gz
+experiment3/data/cifar-10-batches-py/
+
+# 备份目录
+.backup/
+
+# 二进制文本文件
+tree.txt
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# IDE
+.idea/

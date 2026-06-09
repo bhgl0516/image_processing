@@ -1,6 +1,11 @@
+import matplotlib
 import os
 import sys
 
+import numpy as np
+
+# 无头环境兼容：在导入 pyplot 前先设 Agg 后端
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # 配置项目路径
@@ -16,6 +21,13 @@ from common.utils import load_image_gray, calculate_psnr, save_image, ensure_dir
 
 # 跨模块兼容：绝对导入 + 相对导入回退
 try:
+    from src.archive.noise_generator import add_gaussian_noise, add_sp_noise
+    from src.archive.spatial_filters import mean_filter, median_filter
+    HAS_ARCHIVE_IMPL = True
+except ImportError:
+    HAS_ARCHIVE_IMPL = False
+
+try:
     from src.custom_noise import add_custom_gaussian_noise, add_custom_sp_noise
     from src.custom_filters import custom_mean_filter, custom_median_filter
     from src.dncnn_model import run_dncnn
@@ -27,6 +39,28 @@ except ImportError:
 # 中文字体配置
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
 plt.rcParams['axes.unicode_minus'] = False
+
+
+def get_noise_funcs(use_archive=False):
+    """根据模式选择噪声生成函数（统一接口）"""
+    if use_archive and HAS_ARCHIVE_IMPL:
+        print("    [模式] 噪声生成 -> 存档版本 (noise_generator.py)")
+        def _gn(image, mean=0, variance=625):
+            return add_gaussian_noise(image, mean=mean, sigma=np.sqrt(variance))
+        def _spn(image, prob_white=0.05, prob_black=0.05):
+            return add_sp_noise(image, prob=prob_white + prob_black)
+        return _gn, _spn
+    print("    [模式] 噪声生成 -> 纯 NumPy 手写 (custom_noise.py)")
+    return add_custom_gaussian_noise, add_custom_sp_noise
+
+
+def get_filter_funcs(use_archive=False):
+    """根据模式选择滤波器函数"""
+    if use_archive and HAS_ARCHIVE_IMPL:
+        print("    [模式] 空间滤波 -> 存档版本 (spatial_filters.py)")
+        return mean_filter, median_filter
+    print("    [模式] 空间滤波 -> 纯 NumPy 手写 (custom_filters.py)")
+    return custom_mean_filter, custom_median_filter
 
 
 def highlight_axes(ax):
@@ -109,10 +143,20 @@ def plot_comparison_master(original, noisy, noisy_psnr, mean_res, best_k_mean,
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(save_path, dpi=300)
-    plt.show()
+plt.show()
 
 
-def main():
+def main(**kwargs):
+    use_archive_noise = kwargs.get('_archive_noise', False)
+    use_archive_filters = kwargs.get('_archive_filters', False)
+    add_gn, add_spn = get_noise_funcs(use_archive_noise)
+    filt_mean, filt_median = get_filter_funcs(use_archive_filters)
+
+    variance = float(kwargs.get('高斯噪声方差', '625'))
+    prob_total = float(kwargs.get('椒盐噪声概率', '0.1'))
+    prob_white = prob_total / 2.0
+    prob_black = prob_total / 2.0
+
     base_dir = os.path.dirname(os.path.abspath(__file__))
     img_path = os.path.join(base_dir, 'data', 'lena.png')
     weight_path = os.path.join(base_dir, 'data', 'weights', 'net.pth')
@@ -137,14 +181,14 @@ def main():
     img = load_image_gray(img_path, target_size=256)
 
     # --- 实验 1: 高斯噪声 ---
-    log_and_print(">>> 场景 A: 高斯噪声实验 (均值:0, 方差:625)")
-    img_gn = add_custom_gaussian_noise(img, mean=0, variance=625)
+    log_and_print(f">>> 场景 A: 高斯噪声实验 (均值:0, 方差:{variance})")
+    img_gn = add_gn(img, mean=0, variance=variance)
     p_gn = calculate_psnr(img, img_gn)
     log_and_print(f"    [加噪后 PSNR]: {p_gn:.2f} dB")
 
-    res_gn_mean, bk_gn_mean = run_filter_suite(img_gn, img, custom_mean_filter, 'mean',
+    res_gn_mean, bk_gn_mean = run_filter_suite(img_gn, img, filt_mean, 'mean',
                                                os.path.join(results_dir, 'gaussian_noise'))
-    res_gn_med, bk_gn_med = run_filter_suite(img_gn, img, custom_median_filter, 'median',
+    res_gn_med, bk_gn_med = run_filter_suite(img_gn, img, filt_median, 'median',
                                              os.path.join(results_dir, 'gaussian_noise'))
 
     for k in [3, 5, 7]:
@@ -160,14 +204,14 @@ def main():
                            os.path.join(results_dir, 'comparison', 'gaussian_analysis.png'))
 
     # --- 实验 2: 椒盐噪声 ---
-    log_and_print(">>> 场景 B: 椒盐噪声实验 (黑白概率各 0.05)")
-    img_spn = add_custom_sp_noise(img, prob_white=0.05, prob_black=0.05)
+    log_and_print(f">>> 场景 B: 椒盐噪声实验 (总概率:{prob_total}, 各 {prob_white:.3f})")
+    img_spn = add_spn(img, prob_white=prob_white, prob_black=prob_black)
     p_spn = calculate_psnr(img, img_spn)
     log_and_print(f"    [加噪后 PSNR]: {p_spn:.2f} dB")
 
-    res_sp_mean, bk_sp_mean = run_filter_suite(img_spn, img, custom_mean_filter, 'mean',
+    res_sp_mean, bk_sp_mean = run_filter_suite(img_spn, img, filt_mean, 'mean',
                                                os.path.join(results_dir, 'sp_noise'))
-    res_sp_med, bk_sp_med = run_filter_suite(img_spn, img, custom_median_filter, 'median',
+    res_sp_med, bk_sp_med = run_filter_suite(img_spn, img, filt_median, 'median',
                                              os.path.join(results_dir, 'sp_noise'))
 
     for k in [3, 5, 7]:

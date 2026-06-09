@@ -4,6 +4,7 @@ import time
 
 import cv2
 import matplotlib.pyplot as plt
+import numpy as np
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(PROJECT_ROOT)

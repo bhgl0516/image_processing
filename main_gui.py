@@ -24,7 +24,7 @@ from PyQt5.QtCore import Qt, QThread, pyqtSignal, QObject
 from PyQt5.QtGui import QColor, QPixmap, QTextCursor
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QGridLayout, QLabel, QPushButton,
-                             QStackedWidget, QSizePolicy,
+                             QStackedWidget, QSizePolicy, QCheckBox,
                              QGraphicsDropShadowEffect, QMessageBox, QGroupBox,
                              QFormLayout, QLineEdit, QTextEdit)
 
@@ -110,7 +110,7 @@ class ExperimentWorker(QThread):
         if not os.path.exists(exp_dir): os.makedirs(exp_dir)
         os.chdir(exp_dir)
         try:
-            self.run_func()
+            self.run_func(**self.params_dict)
         except Exception as e:
             self.error.emit(str(e))
         finally:
@@ -144,6 +144,21 @@ class ImageProcessingApp(QMainWindow):
         imgs_exp1 = [os.path.join('experiment1', 'results', 'comparison', 'all_comparison.png')]
 
         params_exp2 = [("高斯噪声方差", "625"), ("椒盐噪声概率", "0.1")]
+
+        def setup_exp2_extra(layout, input_dict):
+            group = QGroupBox("实现模式选择")
+            group.setStyleSheet(
+                "QGroupBox { font-weight: bold; font-size: 14px; border: 1px solid #BDC3C7; border-radius: 5px; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px; }")
+            vbox = QVBoxLayout(group)
+            cb_noise = QCheckBox("噪声生成：使用存档版本 (noise_generator.py)")
+            cb_filter = QCheckBox("空间滤波：使用存档版本 (spatial_filters.py)")
+            for cb in [cb_noise, cb_filter]:
+                cb.setStyleSheet("font-size: 14px; padding: 4px;")
+                vbox.addWidget(cb)
+            layout.addWidget(group)
+            input_dict['_archive_noise'] = cb_noise
+            input_dict['_archive_filters'] = cb_filter
+
         imgs_exp2 = [
             os.path.join('experiment2', 'results', 'comparison', 'gaussian_analysis.png'),
             os.path.join('experiment2', 'results', 'comparison', 'sp_analysis.png')
@@ -161,7 +176,7 @@ class ImageProcessingApp(QMainWindow):
         self.lab1_page = self.create_functional_lab_page("实验一 图像变换", 0, run_exp1, 'experiment1', params_exp1,
                                                          imgs_exp1)
         self.lab2_page = self.create_functional_lab_page("实验二 图像增强复原", 0, run_exp2, 'experiment2', params_exp2,
-                                                         imgs_exp2)
+                                                         imgs_exp2, extra_setup_fn=setup_exp2_extra)
         self.lab3_page = self.create_functional_lab_page("实验三 CIFAR-10识别", 0, run_exp3, 'experiment3', params_exp3,
                                                          imgs_exp3)
         self.lab4_page = self.create_functional_lab_page("实验四 图像分割处理", 0, run_exp4, 'experiment4', params_exp4,
@@ -233,7 +248,7 @@ class ImageProcessingApp(QMainWindow):
         btn_lab4.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(4))
 
     def create_functional_lab_page(self, title_text, main_page_index, run_func, target_folder, params,
-                                   result_img_paths):
+                                   result_img_paths, extra_setup_fn=None):
         page = QWidget()
         main_h_layout = QHBoxLayout(page)
         main_h_layout.setContentsMargins(20, 20, 20, 20)
@@ -265,6 +280,9 @@ class ImageProcessingApp(QMainWindow):
             input_dict[label_text] = line_edit
 
         left_layout.addWidget(param_group)
+
+        if extra_setup_fn:
+            extra_setup_fn(left_layout, input_dict)
 
         btn_layout = QHBoxLayout()
         run_btn = QPushButton("▶ 运行实验")
@@ -324,7 +342,12 @@ class ImageProcessingApp(QMainWindow):
                                     f"【{title_text}】导入失败！\n请查看终端第一行的 [导入警告] 了解具体原因。")
                 return
 
-            current_params = {k: v.text() for k, v in input_dict.items()}
+            current_params = {}
+            for k, v in input_dict.items():
+                if isinstance(v, QCheckBox):
+                    current_params[k] = v.isChecked()
+                else:
+                    current_params[k] = v.text()
 
             run_btn.setEnabled(False)
             back_btn.setEnabled(False)
