@@ -1,119 +1,219 @@
-# 智能图像处理综合实验平台 (PyQt5)
-
-本项目设计并实现了一个基于 **PyQt5** 的智能图像处理综合实验平台。该平台将四个阶段的学术实验整合在统一的图形用户界面中，利用多线程（`QThread`）异步运行机制和控制台输出重定向技术，保证了在进行深度学习训练与推理时主界面的响应流畅度。
+<p align="center">
+  <h1 align="center">智能图像处理综合实验平台</h1>
+  <p align="center">Intelligent Image Processing — Integrated Lab Platform</p>
+  <p align="center">
+    <strong>PyQt5</strong> · <strong>OpenCV</strong> · <strong>NumPy</strong> · <strong>PyTorch</strong> · <strong>Matplotlib</strong>
+  </p>
+  <p align="center">
+    <a href="#-features">Features</a> ·
+    <a href="#-architecture">Architecture</a> ·
+    <a href="#-quick-start">Quick Start</a> ·
+    <a href="#-experiments">Experiments</a> ·
+    <a href="#-project-structure">Structure</a>
+  </p>
+</p>
 
 ---
 
-## 🛠️ 开发环境与依赖
+## 📋 Overview
 
-- **操作系统**: Windows 10/11
-- **开发工具**: PyCharm
-- **Python 版本**: `Python 3.11`
-- **核心依赖包** (详细清单见 `common/requirements.txt`):
-  - 界面与排版: `PyQt5`
-  - 传统图像处理: `opencv-python`, `numpy`, `scipy`
-  - 绘图与可视化: `matplotlib`
-  - 深度学习框架: `torch`, `torchvision`, `compressai`
+An integrated image processing laboratory platform that consolidates **four academic experiments** — image transforms, enhancement & restoration, object recognition, and segmentation — into a single PyQt5 desktop application. The platform features a multi-threaded asynchronous execution engine, real-time console redirection, and a responsive zoom-capable UI for result visualization.
 
-### 一键安装依赖
-在项目根目录下打开终端，运行：
+Built for **Python 3.11**, leveraging both traditional computer vision (OpenCV, NumPy) and deep learning (PyTorch, TorchVision, CompressAI).
+
+---
+
+## ✨ Features
+
+| Feature | Description |
+|---|---|
+| **Unified GUI** | Single-window lab launcher with 4 experiment pages, QStackedWidget navigation |
+| **Async Execution** | QThread-based worker isolates long-running experiments from UI thread |
+| **Real-time Console** | stdout/stderr redirector streams live logs into the control panel |
+| **Fullscreen Viewer** | Click images or console output for full-window preview with one-click return |
+| **Responsive Scaling** | Font sizes, spacing, and layout constraints scale with window resize (0.5×–2.0×) |
+| **One-click Cleanup** | Clear experiment artifacts per lab or all at once from the home page |
+| **Mode Switching** | Toggle between pure-NumPy handcrafted implementations and OpenCV-accelerated versions (Exp. 2) |
+| **Result Visualization** | Matplotlib-generated comparison charts with PSNR annotations and optimal-method highlighting |
+
+---
+
+## 🏗 Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│  QMainWindow (ImageProcessingApp)                     │
+│  ┌──────────────────────────────────────────────────┐ │
+│  │  QStackedWidget (page navigator)                  │ │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────┐ │ │
+│  │  │  Home    │ │  Exp 1   │ │  Exp 2   │ │ ...  │ │ │
+│  │  │  Page    │ │  Page    │ │  Page    │ │      │ │ │
+│  │  └──────────┘ └──────────┘ └──────────┘ └──────┘ │ │
+│  └──────────────────────────────────────────────────┘ │
+│                                                       │
+│  ┌──────────── QThread Workers ─────────────────────┐ │
+│  │  ExperimentWorker → executes run_func() async    │ │
+│  │  StreamRedirector → sys.stdout → pyqtSignal → UI │ │
+│  └──────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────┘
+```
+
+**Design principles:**
+- **Decoupled experiments** — Each lab is a standalone package under `experiment{N}/` with its own `src/`, `data/`, and `results/`. No cross-experiment dependencies.
+- **Fallback imports** — Absolute→relative import chain ensures compatibility across different execution contexts (direct run, GUI-launched, IDE debug).
+- **Scalable styling** — All `font-size`, `padding`, `border-radius`, and layout margins are multiplied by a window-width-derived scale factor, updated live on `resizeEvent`.
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Python 3.11**
+- **Windows 10/11** (primary target; Linux/macOS with PyQt5 support should work)
+
+### Install dependencies
+
 ```bash
 pip install -r common/requirements.txt
 ```
 
----
+The environment includes:
+`PyQt5` `opencv-python` `numpy` `scipy` `matplotlib` `torch` `torchvision` `compressai`
 
-## 📂 项目目录结构
+### Prepare assets
 
-整个工程采用了**公共工具与独立实验解耦**的设计模式。每个实验文件夹内部保持独立，运行产生的所有图片和文本报告均会自动分类输出至各自的 `results/` 子目录下。
+| Experiment | Required file | Location |
+|---|---|---|
+| Exp 1 | `lena.png` | `experiment1/data/lena.png` |
+| Exp 2 | `lena.png` + `net.pth` | `experiment2/data/` |
+| Exp 3 | _(auto-downloads CIFAR-10)_ | — |
+| Exp 4 | `chuanbo.bmp` + optional `custom_photo.jpg` | `experiment4/data/` |
 
-```text
-image_processing/
-│
-├── main_gui.py                # 平台主入口 (PyQt5 多页面切换与多线程调度)
-│
-├── common/                    # 跨实验复用的工具包
-│   ├── utils.py               # 封装了 PSNR 计算、图像加载、安全中文保存等函数
-│   └── requirements.txt       # 全局第三方依赖清单
-│
-├── experiment1/               # 【实验一：图像变换实验】
-│   ├── data/                  # 存放测试图 (如 lena.png)
-│   ├── results/               # 自动生成的传统对比图与二进制码流
-│   └── src/
-│       ├── traditional_transforms.py # FFT, DCT, Hadamard 变换及逆变换
-│       └── deep_compression.py       # CompressAI 神经网络图像压缩
-│
-├── experiment2/               # 【实验二：图像增强复原实验】
-│   ├── data/                  # 存放 lena.png 及权重文件夹 weights/net.pth
-│   ├── results/               # 分类保存高斯、椒盐去噪过程及对比大图
-│   └── src/
-│       ├── custom_noise.py    # 纯手工(无封装)高斯/椒盐噪声生成器
-│       ├── custom_filters.py  # 纯手工(无封装)空间均值/中值滤波器 (Sliding Window)
-│       └── dncnn_model.py     # 深度学习去噪网络定义与权重兼容处理器
-│
-├── experiment3/               # 【实验三：CIFAR-10物体识别】
-│   ├── data/                  # 自动下载的 CIFAR-10 原始数据集
-│   ├── results/               # 自动生成收敛曲线、抗噪柱状图及预测对比图
-│   └── src/
-│       ├── dataset.py         # 干净训练集加载与测试集椒盐噪声(0.1)注入
-│       ├── model.py           # 带有 Batch Normalization 的 3层卷积神经网络 (CNN)
-│       └── train.py           # 训练/测试循环逻辑
-│
-├── experiment4/               # 【实验四：图像分割处理】
-│   ├── data/                  # 存放 船舶.bmp (chuanbo.bmp) 与实拍照片 custom_photo.jpg
-│   ├── results/               # 存放传统分割结果与深度学习抗噪折线图
-│   └── src/
-│       ├── traditional.py     # Otsu 阈值分割与圆形结构元素形态学处理
-│       └── deep_learning.py   # 基于 Torchvision 的 Mask R-CNN 实例分割
-│
-└── README.md                  # 本说明文档
+> `net.pth` is a pre-trained DnCNN weight file. Place it under `experiment2/data/weights/net.pth`.
+
+### Launch
+
+```bash
+python main_gui.py
 ```
 
 ---
 
-## 🚀 各实验核心要点与运行说明
+## 🔬 Experiments
 
-### 实验一：图像变换实验
-- **核心要求**：对图像进行傅立叶、DCT、哈达玛变换，通过设定门限保留绝对值最大的前 **5% 系数（将 95% 置零）** 并逆变换，分析并对比 PSNR。
-- **检查要点**：
-  1. 准确输出并保存三种变换的对数频谱图。
-  2. 利用**二分查找算法**精确计算在达成目标质量 **PSNR = 28.0 dB** 时，三种变换最少需要保留的非零元素个数（可得结论：DCT 能量集中度最高）。
-  3. 计算并输出三种变换的运算耗时。
-  4. 对比了基于深度学习（CompressAI）的压缩重建结果。
+### Experiment 1 — Image Transforms
 
-### 实验二：图像增强复原实验
-- **核心要求**：实现空间均值滤波、中值滤波以及深度学习去噪模型（DnCNN），探究滤波器大小（3x3, 5x5, 7x7）对去噪效果的影响。
-- **检查要点**：
-  1. **代码合规性**：噪声生成与传统空间滤波器**不使用任何官方封装好的函数**，全部使用纯 NumPy 数组滑动窗口（`sliding_window_view`）手写实现，以保障评分合规。
-  2. 添加标准高斯噪声（均值0，方差625）和椒盐噪声（黑白概率各0.05）。
-  3. **模型兼容性**：针对预训练的 `net.pth` 进行了 `DataParallel` 前缀消除与无 Bias 卷积层的网络结构适配，成功在 CPU/GPU 上平稳运行。
-  4. 输出大图自动利用红框标记出各传统方法中 PSNR 最优的核大小组合。
+**Goal:** Apply FFT, DCT, and Hadamard transforms; zero out 95% of coefficients; reconstruct and compare PSNR.
 
-### 实验三：CIFAR-10物体识别
-- **核心要求**：设计图像识别分类算法，并分析模型在遭受极端噪点污染时的准确率跌落表现。
-- **检查要点**：
-  1. 在原始测试集上识别准确率不低于 **60%**（本模型通过引入 BN 层，约在第 10 轮时可稳定达到 **73%** 左右）。
-  2. 在测试集中注入概率各为 **0.1** 的黑白椒盐噪声，评估带噪分类精度。
-  3. 自动生成包含 Loss 曲线、Accuracy 曲线、以及展示识别置信度变化的综合图表。
+| Checkpoint | Description |
+|---|---|
+| Log-magnitude spectra | Save transformed spectra for all three methods |
+| Binary-search PSNR targeting | Find minimum nonzero coefficients to reach a target PSNR (configurable via GUI, default 28.0 dB) |
+| Runtime profiling | Measure and compare execution time of each transform |
+| DL compression (bonus) | Compare against CompressAI neural compression |
 
-### 实验四：图像分割处理
-- **核心要求**：使用传统方法对海面船舶进行二值化分割与形态学去噪；部署实例分割网络（Mask R-CNN），测试真实生活场景，并开展现场噪声测评。
-- **检查要点**：
-  1. 对中值滤波（k=5）、Otsu 自动阈值分割、以及不同半径圆形结构元素（r=1, 3, 5）的开运算进行串联。
-  2. 部署预训练的 Mask R-CNN，支持用户使用手机实拍照片 `custom_photo.jpg` 进行泛化性分割测试。
-  3. 在现场测评中向图像注入不同强度的 Gaussian 噪声（$\sigma=0, 15, 25, 50$），自动描绘出**“检出准确率与噪声强度关系图”**。
+### Experiment 2 — Image Enhancement & Restoration
+
+**Goal:** Implement spatial mean/median filtering and DnCNN denoising; evaluate kernel-size effects.
+
+| Checkpoint | Description |
+|---|---|
+| **Code compliance** | Pure NumPy sliding-window implementation (`custom_noise.py`, `custom_filters.py`) — no OpenCV wrappers for noise/filter logic |
+| Gaussian noise (μ=0, σ=25) | Add noise at configurable variance |
+| Salt-and-pepper noise | Configurable probability (default 0.05 each) |
+| DnCNN inference | Pre-trained model loading with `DataParallel` prefix stripping |
+| Optimal-kernel highlighting | Red-border annotation on the best PSNR result per method |
+| **Mode toggle** | GUI checkbox to switch between pure-NumPy and OpenCV-accelerated archive versions |
+
+### Experiment 3 — CIFAR-10 Object Recognition
+
+**Goal:** Train a CNN on CIFAR-10; evaluate accuracy drop under heavy salt-and-pepper noise.
+
+| Checkpoint | Description |
+|---|---|
+| Clean accuracy ≥ 60% | 3-layer CNN with BatchNorm achieves ~73% at epoch 10 |
+| Noisy evaluation | Salt-and-pepper noise (p=0.1 each) injected into test set |
+| Report chart | Auto-generated: loss curve, accuracy bar chart, prediction grid |
+
+### Experiment 4 — Image Segmentation
+
+**Goal:** Traditional Otsu-based ship segmentation + deployment of Mask R-CNN instance segmentation.
+
+| Checkpoint | Description |
+|---|---|
+| Median filtering → Otsu | Configurable kernel size (default k=5) |
+| Morphological opening | Circular structuring elements with user-specified radius |
+| Mask R-CNN inference | Pre-trained on COCO, supports user-supplied custom photos |
+| Noise-robustness sweep | Gaussian noise σ ∈ {0, 15, 25, 50} vs. detection accuracy curve |
 
 ---
 
-## 💻 平台运行方法
+## 📁 Project Structure
 
-1. **IDE 设置**：在 PyCharm 中打开 `image_processing` 根目录。右键点击该目录，选择 **"Mark Directory as"** -> **"Sources Root"**（确保路径解析正常）。
-2. **准备权重文件**（针对实验二）：
-   - 将 DnCNN 权重文件命名为 `net.pth`。
-   - 放置在路径：`experiment2/data/weights/net.pth`。
-3. **启动主程序**：
-   运行根目录下的主控制程序：
-   ```bash
-   python main_gui.py
-   ```
-4. **进行交互**：在弹出的交互大面板中，点击对应按钮进入子实验。在子页面左侧可更改参数（预留展示），点击“▶ 运行实验”即可在右侧动态无缝加载实验结果。
+```
+image_processing/
+├── main_gui.py                 # Application entry — PyQt5 GUI with multi-threaded runner
+├── common/
+│   ├── utils.py                # PSNR, image I/O, directory helpers
+│   └── requirements.txt        # Dependency manifest
+│
+├── experiment1/                # Image Transforms
+│   ├── data/                   # lena.png
+│   ├── results/                # Spectra, reconstructed images, comparison chart
+│   └── src/
+│       ├── traditional_transforms.py   # FFT / DCT / Hadamard + inverse
+│       └── deep_compression.py         # CompressAI neural codec
+│
+├── experiment2/                # Enhancement & Restoration
+│   ├── data/                   # lena.png, weights/net.pth
+│   ├── results/                # Filtered images, analysis charts, PSNR report
+│   └── src/
+│       ├── custom_filters.py           # NumPy sliding-window mean/median
+│       ├── custom_noise.py             # NumPy Gaussian / salt-and-pepper
+│       ├── dncnn_model.py              # DnCNN architecture + weight adapter
+│       └── archive/                    # OpenCV-accelerated reference implementations
+│           ├── noise_generator.py
+│           └── spatial_filters.py
+│
+├── experiment3/                # CIFAR-10 Recognition
+│   ├── data/                   # (auto-downloaded CIFAR-10)
+│   ├── results/                # Training curves, accuracy plots
+│   └── src/
+│       ├── dataset.py          # DataLoader with noise injection
+│       ├── model.py            # CNN with BatchNorm
+│       └── train.py            # Train / evaluate loop
+│
+├── experiment4/                # Segmentation
+│   ├── data/                   # chuanbo.bmp, custom_photo.jpg
+│   ├── results/                # Segmentation masks, noise-robustness plots
+│   └── src/
+│       ├── traditional.py      # Otsu threshold + morphological operations
+│       └── deep_learning.py    # Mask R-CNN (TorchVision) inference
+│
+└── README.md
+```
+
+---
+
+## 🧰 Tech Stack
+
+| Category | Technology |
+|---|---|
+| **GUI Framework** | PyQt5 (QStackedWidget, QThread, QTextEdit) |
+| **Image Processing** | OpenCV 4.9, NumPy 1.26 |
+| **Deep Learning** | PyTorch 2.x, TorchVision (Mask R-CNN), CompressAI |
+| **Visualization** | Matplotlib, GridSpec |
+| **Python** | 3.11 |
+
+---
+
+## 🤝 Contributing
+
+This project was developed as an academic laboratory platform. Contributions, bug reports, and feature suggestions are welcome — feel free to open an issue or submit a pull request.
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
