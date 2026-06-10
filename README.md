@@ -216,4 +216,4 @@ This project was developed as an academic laboratory platform. Contributions, bu
 
 ## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the BSD 3-Clause License. See `LICENSE` for more information.
