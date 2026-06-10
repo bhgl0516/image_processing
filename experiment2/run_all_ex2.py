@@ -80,7 +80,7 @@ def run_filter_suite(noisy_img, original_img, filter_func, name, dirs):
         out = filter_func(noisy_img, kernel_size=k)
         psnr = calculate_psnr(original_img, out)
         res[k] = (out, psnr)
-        save_image(out, dirs, f'{name}_k{k}_{psnr:.2f}dB.png', cmap='gray')
+        save_image(out, dirs, f'{name}_k{k}.png', cmap='gray')
         if psnr > max_psnr:
             max_psnr = psnr
             best_k = k

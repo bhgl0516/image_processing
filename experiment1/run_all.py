@@ -61,7 +61,10 @@ def find_target_psnr(img, coeffs, inv_transform_func, target_psnr=28.0, tol=0.1,
     return best_ratio, best_psnr, nnz
 
 
-def main():
+def main(**kwargs):
+    # 从 GUI 参数中解析用户配置
+    target_psnr = float(kwargs.get('目标 PSNR (dB)', '28.0'))
+
     base_dir = os.path.dirname(os.path.abspath(__file__))
     img_path = os.path.join(base_dir, 'data', 'lena.png')
     results_dir = os.path.join(base_dir, 'results')
@@ -124,10 +127,10 @@ def main():
         print(f"[Deep] 深度学习直接重建 PSNR: {psnr_dl:.2f} dB")
 
 
-    # 阶段二：找28dB对应系数，及计算耗时
+    # 阶段二：找 target_psnr dB 对应系数，及计算耗时
 
-    print("\n" + "=" * 50)
-    print(">>>  寻找 PSNR≈28dB 最少非零元素 & 耗时对比")
+    print(f"\n" + "=" * 50)
+    print(f">>>  寻找 PSNR≈{target_psnr}dB 最少非零元素 & 耗时对比")
     print("=" * 50)
 
     # FFT 测速与查参
@@ -135,25 +138,25 @@ def main():
     fft_coeffs = get_fft_coeffs(img_gray)
     _ = inv_fft(fft_coeffs)
     time_fft = time.perf_counter() - t0
-    r_f, p_f, n_f = find_target_psnr(img_gray, fft_coeffs, inv_fft, target_psnr=28.0)
+    r_f, p_f, n_f = find_target_psnr(img_gray, fft_coeffs, inv_fft, target_psnr=target_psnr)
 
     # DCT 测速与查参
     t0 = time.perf_counter()
     dct_coeffs = get_dct_coeffs(img_gray)
     _ = inv_dct(dct_coeffs)
     time_dct = time.perf_counter() - t0
-    r_d, p_d, n_d = find_target_psnr(img_gray, dct_coeffs, inv_dct, target_psnr=28.0)
+    r_d, p_d, n_d = find_target_psnr(img_gray, dct_coeffs, inv_dct, target_psnr=target_psnr)
 
     # HAD 测速与查参
     t0 = time.perf_counter()
     had_coeffs = get_hadamard_coeffs(img_gray)
     _ = inv_hadamard(had_coeffs)
     time_had = time.perf_counter() - t0
-    r_h, p_h, n_h = find_target_psnr(img_gray, had_coeffs, inv_hadamard, target_psnr=28.0)
+    r_h, p_h, n_h = find_target_psnr(img_gray, had_coeffs, inv_hadamard, target_psnr=target_psnr)
 
     print(f"FFT 耗时: {time_fft:.4f}s | DCT 耗时: {time_dct:.4f}s | HAD 耗时: {time_had:.4f}s")
     print("-" * 50)
-    print(f"达成 PSNR ≈ 28dB (总像素: {total_pixels}) 所需非零元素：")
+    print(f"达成 PSNR ≈ {target_psnr}dB (总像素: {total_pixels}) 所需非零元素：")
     print(f"       FFT 需要保留 {n_f} 个 (约 {r_f * 100:.2f}%)")
     print(f"       DCT 需要保留 {n_d} 个 (约 {r_d * 100:.2f}%)")
     print(f"       HAD 需要保留 {n_h} 个 (约 {r_h * 100:.2f}%)")
