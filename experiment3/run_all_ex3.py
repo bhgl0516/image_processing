@@ -39,7 +39,11 @@ def imshow_unnormalize(img):
     return np.clip(np.transpose(npimg, (1, 2, 0)), 0, 1)
 
 
-def main():
+def main(**kwargs):
+    # 从 GUI 参数中解析用户配置
+    epochs = int(kwargs.get('训练 Epochs', '10'))
+    batch_size = int(kwargs.get('Batch Size', '128'))
+
     base_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(base_dir, 'data')
     res_dir = os.path.join(base_dir, 'results')
@@ -52,10 +56,9 @@ def main():
 
     # 2. 准备数据
     print("\n>>> 正在准备 CIFAR-10 数据集 (含自定义椒盐噪声)...")
-    trainloader, testloader_clean, testloader_noisy, classes = get_dataloaders(data_dir, batch_size=128)
+    trainloader, testloader_clean, testloader_noisy, classes = get_dataloaders(data_dir, batch_size=batch_size)
 
     # 3. 初始化并训练模型
-    epochs = 10
     model = SimpleCNN(num_classes=10)
     history = train_model(model, trainloader, epochs=epochs, device=device)
 

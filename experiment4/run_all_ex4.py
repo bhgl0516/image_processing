@@ -27,7 +27,14 @@ plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
 plt.rcParams['axes.unicode_minus'] = False
 
 
-def main():
+def main(**kwargs):
+    # 从 GUI 参数中解析用户配置
+    otsu_smooth_k = int(kwargs.get('Otsu 平滑核', '5'))
+    morph_r_max = int(kwargs.get('形态学开运算 r', '5'))
+    # 确保内核大小为奇数且有效
+    if otsu_smooth_k not in (3, 5, 7):
+        otsu_smooth_k = 5
+
     base_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(base_dir, 'data')
     res_dir = os.path.join(base_dir, 'results')
@@ -48,15 +55,17 @@ def main():
     print("\n>>> 正在执行 [传统图像分割] 分析...")
     ship_gray = cv2.imread(ship_path, cv2.IMREAD_GRAYSCALE)
 
-    # (1) 中值滤波效果分析
-    smooth_results = apply_median_filters(ship_gray, [3, 5, 7])
-    best_smoothed = smooth_results[5]  # 选取 k=5 作为后续处理基准
+    # (1) 中值滤波效果分析（使用用户指定的核大小）
+    kernel_sizes = [3, 5, 7]
+    smooth_results = apply_median_filters(ship_gray, kernel_sizes)
+    best_smoothed = smooth_results.get(otsu_smooth_k, smooth_results[5])  # 使用用户指定的核
 
     # (2) Otsu 阈值分割
     otsu_thresh_val, binary_ship = otsu_segmentation(best_smoothed)
 
-    # (3) 数学形态学处理 (圆形结构元素, 半径 r=1, 3, 5)
-    morph_results = morphological_process(binary_ship, [1, 3, 5])
+    # (3) 数学形态学处理 (圆形结构元素, 半径基于用户设定)
+    morph_radii = sorted(set([1, 3, morph_r_max]))  # 始终包含 1 和 3，加上用户指定的值
+    morph_results = morphological_process(binary_ship, morph_radii)
 
     # --- 绘制传统分割总结大图 ---
     fig1, axes1 = plt.subplots(2, 3, figsize=(15, 10))
@@ -66,16 +75,15 @@ def main():
     axes1[0, 0].imshow(ship_gray, cmap='gray');
     axes1[0, 0].set_title("1. 原始图像 (船舶.bmp)")
     axes1[0, 1].imshow(best_smoothed, cmap='gray');
-    axes1[0, 1].set_title("2. 最优中值平滑 (k=5)")
+    axes1[0, 1].set_title(f"2. 最优中值平滑 (k={otsu_smooth_k})")
     axes1[0, 2].imshow(binary_ship, cmap='gray');
     axes1[0, 2].set_title("3. Otsu 阈值分割 (二值化)")
 
-    axes1[1, 0].imshow(morph_results[1], cmap='gray');
-    axes1[1, 0].set_title("4. 形态学优化 (圆半径 r=1)")
-    axes1[1, 1].imshow(morph_results[3], cmap='gray');
-    axes1[1, 1].set_title("5. 形态学优化 (圆半径 r=3)")
-    axes1[1, 2].imshow(morph_results[5], cmap='gray');
-    axes1[1, 2].set_title("6. 形态学优化 (圆半径 r=5)")
+    for idx, r in enumerate(morph_radii[:3]):  # 最多显示前 3 个半径结果
+        axes1[1, idx].imshow(morph_results[r], cmap='gray')
+        axes1[1, idx].set_title(f"{4 + idx}. 形态学优化 (圆半径 r={r})")
+    for idx in range(len(morph_radii), 3):  # 剩余子图置空
+        axes1[1, idx].axis('off')
 
     for ax in axes1.flat: ax.axis('off')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])

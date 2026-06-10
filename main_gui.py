@@ -367,9 +367,21 @@ class ImageProcessingApp(QMainWindow):
             self.worker.error.connect(on_run_error)
             self.worker.start()
 
+        _disconnected = False  # 防止 error 和 finished 信号双发导致二次 disconnect 崩溃
+
+        def safe_disconnect():
+            nonlocal _disconnected
+            if _disconnected:
+                return
+            _disconnected = True
+            try:
+                self.redirector.text_written.disconnect(update_console)
+            except TypeError:
+                pass  # 信号未连接时忽略
+
         def on_run_finished():
             print(f"\n========== {title_text} 执行完毕 ==========")
-            self.redirector.text_written.disconnect(update_console)
+            safe_disconnect()
             run_btn.setEnabled(True)
             back_btn.setEnabled(True)
             run_btn.setText("▶ 重新运行")
@@ -384,7 +396,7 @@ class ImageProcessingApp(QMainWindow):
 
         def on_run_error(err_msg):
             print(f"\n[致命错误] {err_msg}")
-            self.redirector.text_written.disconnect(update_console)
+            safe_disconnect()
             run_btn.setEnabled(True)
             back_btn.setEnabled(True)
             run_btn.setText("▶ 重新运行")
