@@ -21,11 +21,11 @@ from common.utils import ensure_dir
 try:
     from src.dataset import get_dataloaders
     from src.model import SimpleCNN
-    from src.train import train_model, evaluate_model
+    from src.train import train_model, evaluate_model, save_checkpoint, load_checkpoint
 except ImportError:
     from .src.dataset import get_dataloaders
     from .src.model import SimpleCNN
-    from .src.train import train_model, evaluate_model
+    from .src.train import train_model, evaluate_model, save_checkpoint, load_checkpoint
 
 # 绘图字体支持
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
@@ -58,9 +58,27 @@ def main(**kwargs):
     print("\n>>> 正在准备 CIFAR-10 数据集 (含自定义椒盐噪声)...")
     trainloader, testloader_clean, testloader_noisy, classes = get_dataloaders(data_dir, batch_size=batch_size)
 
-    # 3. 初始化并训练模型
+    # 3. 初始化模型
     model = SimpleCNN(num_classes=10)
-    history = train_model(model, trainloader, epochs=epochs, device=device)
+    weight_path = os.path.join(base_dir, 'data', 'weights', 'cifar10_cnn.pth')
+
+    # 检查是否需要重新训练
+    _retrain = kwargs.get('_retrain', False)
+    model_loaded = False
+    if not _retrain and os.path.exists(weight_path):
+        history = load_checkpoint(model, weight_path, device=device)
+        if history is not None:
+            model_loaded = True
+            print("    [跳过训练] 使用本地已训练模型进行评测")
+        else:
+            model_loaded = False
+
+    if not model_loaded:
+        print("\n>>> 开始训练 CIFAR-10 模型...")
+        history = train_model(model, trainloader, epochs=epochs, device=device)
+        save_checkpoint(model, history, weight_path)
+
+    print(f"\n>>> 模型就绪{' (已加载缓存)' if model_loaded else ''}，开始评估...")
 
     # 4. 检查要点1&2: 测试准确率评估
     print("\n" + "=" * 50)
@@ -84,8 +102,9 @@ def main(**kwargs):
     gs = gridspec.GridSpec(2, 11, figure=fig)
 
     # 1. 绘制 Loss 曲线 (占左侧 3 列)
+    actual_epochs = len(history.get('loss', []))
     ax1 = fig.add_subplot(gs[:, 0:3])
-    ax1.plot(range(1, epochs + 1), history['loss'], 'r-o', label='Train Loss')
+    ax1.plot(range(1, actual_epochs + 1), history['loss'], 'r-o', label='Train Loss')
     ax1.set_title('模型训练 Loss 曲线', fontsize=14)
     ax1.set_xlabel('Epoch');
     ax1.set_ylabel('Loss')

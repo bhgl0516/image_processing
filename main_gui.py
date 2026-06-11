@@ -258,6 +258,13 @@ class ImageProcessingApp(QMainWindow):
         ]
 
         params_exp3 = [("训练 Epochs", "10"), ("Batch Size", "128")]
+
+        def setup_exp3_extra(layout, input_dict):
+            cb_retrain = QCheckBox("重新训练模型（不勾选则使用本地已训练的模型）")
+            self._register_scaled_style(cb_retrain, 14, "padding: 4px;")
+            layout.addWidget(cb_retrain)
+            input_dict['_retrain'] = cb_retrain
+
         imgs_exp3 = [os.path.join('experiment3', 'results', 'Experiment3_Full_Report.png')]
 
         params_exp4 = [("Otsu 平滑核", "5"), ("形态学开运算 r", "5")]
@@ -271,7 +278,7 @@ class ImageProcessingApp(QMainWindow):
         self.lab2_page = self.create_functional_lab_page("实验二 图像增强复原", 0, run_exp2, 'experiment2', params_exp2,
                                                          imgs_exp2, extra_setup_fn=setup_exp2_extra)
         self.lab3_page = self.create_functional_lab_page("实验三 CIFAR-10识别", 0, run_exp3, 'experiment3', params_exp3,
-                                                         imgs_exp3)
+                                                         imgs_exp3, extra_setup_fn=setup_exp3_extra)
         self.lab4_page = self.create_functional_lab_page("实验四 图像分割处理", 0, run_exp4, 'experiment4', params_exp4,
                                                          imgs_exp4)
 
@@ -360,11 +367,46 @@ class ImageProcessingApp(QMainWindow):
                 QMessageBox.information(self, "清理完成", f"{desc} 的输出已清理完毕。")
             return _clean
 
+        # 实验三的模型文件路径
+        exp3_model_path = os.path.join(BASE_DIR, 'experiment3', 'data', 'weights', 'cifar10_cnn.pth')
+
         for idx, label, path in exp_results:
             btn = QPushButton(f"清理{label}")
+
+            if idx == 3:
+                # 实验三额外询问是否删除训练模型
+                def _clean_exp3():
+                    msg = "确定要清理实验三的所有输出图片和报告吗？\n此操作不可撤销。"
+                    if os.path.exists(exp3_model_path):
+                        msg += "\n\n是否同时删除已训练的模型文件？\n（否则下次运行将自动使用缓存的模型）"
+                    reply = QMessageBox.question(self, "确认清理", msg,
+                                                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                    if reply != QMessageBox.Yes:
+                        return
+                    # 先清理 results 目录
+                    clean_dir(path)
+                    # 再询问是否删模型
+                    if os.path.exists(exp3_model_path):
+                        del_model = QMessageBox.question(self, "删除模型",
+                                                         f"是否删除已训练的模型文件？\n{exp3_model_path}",
+                                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                        if del_model == QMessageBox.Yes:
+                            try:
+                                os.remove(exp3_model_path)
+                                # 清理空的 weights 目录
+                                weights_dir = os.path.dirname(exp3_model_path)
+                                if os.path.isdir(weights_dir) and not os.listdir(weights_dir):
+                                    os.rmdir(weights_dir)
+                                print(f"[已删除模型] {exp3_model_path}")
+                            except Exception as e:
+                                print(f"[删除模型失败] {e}")
+                    QMessageBox.information(self, "清理完成", "实验三的输出已清理完毕。")
+                btn.clicked.connect(_clean_exp3)
+            else:
+                btn.clicked.connect(make_clean_callback(label, [path]))
+
             self._register_scaled_style(btn, 13, "padding: 6px 14px; border-radius: 4px;")
             btn.setCursor(Qt.PointingHandCursor)
-            btn.clicked.connect(make_clean_callback(label, [path]))
             cleanup_layout.addWidget(btn)
 
         btn_clean_all = QPushButton("一键全部清理")
