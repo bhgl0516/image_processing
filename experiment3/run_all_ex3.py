@@ -60,6 +60,7 @@ def main(**kwargs):
 
     # 3. 初始化模型
     model = SimpleCNN(num_classes=10)
+    model.to(device)  # 确保模型与 device 一致，避免输入在 cuda 而权重在 cpu
     weight_path = os.path.join(base_dir, 'data', 'weights', 'cifar10_cnn.pth')
 
     # 检查是否需要重新训练
